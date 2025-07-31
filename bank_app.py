@@ -1,5 +1,4 @@
 import streamlit as st
-import getpass
 
 st.set_page_config(page_title="MyBank App", page_icon="🏦", layout="centered")
 st.markdown("""
@@ -24,18 +23,28 @@ if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
+if 'prev_page' not in st.session_state:
+    st.session_state.prev_page = None
+
+def go_to(page_name):
+    st.session_state.prev_page = st.session_state.page
+    st.session_state.page = page_name
+
+def back_button():
+    if st.button("🔙 Back"):
+        st.session_state.page = st.session_state.prev_page
 
 def home():
     st.title("🏦 Welcome to MyBank")
     st.subheader("Your Digital Banking Partner")
-    
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔐 Login"):
-            st.session_state.page = 'login'
+            go_to('login')
     with col2:
         if st.button("📝 Create Account"):
-            st.session_state.page = 'create'
+            go_to('create')
 
 def create_account():
     st.title("📝 Create Account")
@@ -54,9 +63,10 @@ def create_account():
                     'balance': 0
                 }
                 st.success("Account created successfully! Please log in.")
-                st.session_state.page = 'login'
+                go_to('login')
         else:
             st.error("Fill all details and use a 4-digit PIN.")
+    back_button()
 
 def login():
     st.title("🔐 Login")
@@ -68,9 +78,10 @@ def login():
         if user and user['pin'] == pin:
             st.success(f"Welcome back, {user['name']}!")
             st.session_state.current_user = acc_no
-            st.session_state.page = 'dashboard'
+            go_to('dashboard')
         else:
             st.error("Invalid account number or PIN")
+    back_button()
 
 def dashboard():
     user = st.session_state.accounts[st.session_state.current_user]
@@ -79,19 +90,19 @@ def dashboard():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("💰 Deposit"):
-            st.session_state.page = 'deposit'
+            go_to('deposit')
     with col2:
         if st.button("🏧 Withdraw"):
-            st.session_state.page = 'withdraw'
+            go_to('withdraw')
 
     col3, col4 = st.columns(2)
     with col3:
         if st.button("📊 Check Balance"):
-            st.session_state.page = 'balance'
+            go_to('balance')
     with col4:
         if st.button("🚪 Logout"):
             st.session_state.current_user = None
-            st.session_state.page = 'home'
+            go_to('home')
 
 def deposit():
     st.title("💰 Deposit Money")
@@ -103,9 +114,10 @@ def deposit():
         if user['pin'] == pin:
             user['balance'] += amount
             st.success(f"₹{amount} deposited successfully!")
-            st.session_state.page = 'dashboard'
+            go_to('dashboard')
         else:
             st.error("Incorrect PIN")
+    back_button()
 
 def withdraw():
     st.title("🏧 Withdraw Money")
@@ -119,11 +131,12 @@ def withdraw():
             if user['balance'] >= amount:
                 user['balance'] -= amount
                 st.success(f"₹{amount} will be sent to {upi}")
-                st.session_state.page = 'dashboard'
+                go_to('dashboard')
             else:
                 st.error("Insufficient balance")
         else:
             st.error("Incorrect PIN")
+    back_button()
 
 def check_balance():
     st.title("📊 Account Balance")
@@ -133,22 +146,25 @@ def check_balance():
         user = st.session_state.accounts[st.session_state.current_user]
         if user['pin'] == pin:
             st.info(f"Your current balance is ₹{user['balance']}")
+            go_to('dashboard')
         else:
             st.error("Incorrect PIN")
-        st.session_state.page = 'dashboard'
+    back_button()
 
 # Routing
-if st.session_state.page == 'home':
+page = st.session_state.page
+
+if page == 'home':
     home()
-elif st.session_state.page == 'create':
+elif page == 'create':
     create_account()
-elif st.session_state.page == 'login':
+elif page == 'login':
     login()
-elif st.session_state.page == 'dashboard':
+elif page == 'dashboard':
     dashboard()
-elif st.session_state.page == 'deposit':
+elif page == 'deposit':
     deposit()
-elif st.session_state.page == 'withdraw':
+elif page == 'withdraw':
     withdraw()
-elif st.session_state.page == 'balance':
+elif page == 'balance':
     check_balance()
