@@ -1,140 +1,136 @@
 import streamlit as st
-import json
-import os
+import getpass
+import random
 
-ACCOUNTS_FILE = "accounts.json"
+# Use session_state to store user data
+if 'accounts' not in st.session_state:
+    st.session_state.accounts = {}
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'current_user' not in st.session_state:
+    st.session_state.current_user = ''
 
-def load_accounts():
-    if os.path.exists(ACCOUNTS_FILE):
-        with open(ACCOUNTS_FILE, "r") as file:
-            return json.load(file)
-    return {}
+st.set_page_config(page_title="MyBank App", page_icon="🏦", layout="centered")
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7fa; }
+    .stButton>button { background-color: #007BFF; color: white; border-radius: 5px; height: 3em; width: 100%; font-weight: bold; }
+    .stTextInput>div>input { border-radius: 5px; }
+    .stTitle { color: #003366; }
+    </style>
+""", unsafe_allow_html=True)
 
-def save_accounts(accounts):
-    with open(ACCOUNTS_FILE, "w") as file:
-        json.dump(accounts, file)
-
+# Helper functions
 def create_account(name, acc_no, pin):
-    accounts = load_accounts()
-    if acc_no in accounts:
-        return False, "🚫 Account already exists."
-    accounts[acc_no] = {"name": name, "pin": pin, "balance": 0}
-    save_accounts(accounts)
-    return True, "✅ Account created successfully!"
+    if acc_no in st.session_state.accounts:
+        return False
+    st.session_state.accounts[acc_no] = {
+        'name': name,
+        'pin': pin,
+        'balance': 0
+    }
+    return True
 
 def authenticate(acc_no, pin):
-    accounts = load_accounts()
-    user = accounts.get(acc_no)
-    if user and user["pin"] == pin:
-        return True, user["name"]
-    return False, None
+    acc = st.session_state.accounts.get(acc_no)
+    if acc and acc['pin'] == pin:
+        st.session_state.logged_in = True
+        st.session_state.current_user = acc_no
+        return True
+    return False
 
-def deposit(acc_no, amount):
-    accounts = load_accounts()
-    accounts[acc_no]["balance"] += amount
-    save_accounts(accounts)
-    return accounts[acc_no]["balance"]
-
-def withdraw(acc_no, amount):
-    accounts = load_accounts()
-    if accounts[acc_no]["balance"] >= amount:
-        accounts[acc_no]["balance"] -= amount
-        save_accounts(accounts)
-        return True, accounts[acc_no]["balance"]
-    return False, accounts[acc_no]["balance"]
-
-def get_balance(acc_no):
-    return load_accounts()[acc_no]["balance"]
+def get_user():
+    return st.session_state.accounts[st.session_state.current_user]
 
 def home():
-    st.title("🏦 Welcome to MyBank")
-    choice = st.selectbox("Choose an option", ["Select", "Create Account", "Login"])
-
-    if choice == "Create Account":
-        name = st.text_input("👤 Your Name")
-        acc_no = st.text_input("🆔 Create Account Number")
-        pin = st.text_input("🔑 4-Digit PIN", type="password")
-
+    st.title("Welcome to MyBank 🏦")
+    col1, col2 = st.columns(2)
+    with col1:
         if st.button("Create Account"):
-            if not name or not acc_no or not pin:
-                st.error("Please fill all fields.")
-            elif len(pin) != 4 or not pin.isdigit():
-                st.error("PIN must be a 4-digit number.")
+            st.session_state.page = 'create'
+    with col2:
+        if st.button("Login"):
+            st.session_state.page = 'login'
+
+def create_page():
+    st.title("Create Account")
+    name = st.text_input("Full Name")
+    acc_no = st.text_input("Set Account Number")
+    pin = st.text_input("Set 4-digit PIN", type="password")
+    if st.button("Create"):
+        if len(pin) == 4 and pin.isdigit():
+            if create_account(name, acc_no, pin):
+                st.success("Account created! Redirecting to Login...")
+                st.session_state.page = 'login'
             else:
-                success, msg = create_account(name, acc_no, pin)
-                if success:
-                    st.success(msg)
-                    st.session_state.page = "Login"
-                else:
-                    st.error(msg)
-
-    elif choice == "Login":
-        login()
-
-def login():
-    st.subheader("🔐 Login to MyBank")
-    acc_no = st.text_input("Account Number")
-    pin = st.text_input("PIN", type="password")
-    if st.button("Login"):
-        success, name = authenticate(acc_no, pin)
-        if success:
-            st.session_state.logged_in = True
-            st.session_state.acc_no = acc_no
-            st.session_state.name = name
-            st.session_state.page = "Dashboard"
+                st.error("Account number already exists.")
         else:
-            st.error("Invalid credentials.")
+            st.warning("PIN must be 4 digits.")
+
+def login_page():
+    st.title("Login")
+    acc_no = st.text_input("Account Number")
+    pin = st.text_input("4-digit PIN", type="password")
+    if st.button("Login"):
+        if authenticate(acc_no, pin):
+            st.success("Login successful!")
+        else:
+            st.error("Invalid account number or PIN.")
 
 def dashboard():
-    st.title(f"👋 Welcome, {st.session_state.name}")
-    action = st.selectbox("Select action", ["Select", "Deposit", "Withdraw", "Check Balance", "Logout"])
+    st.title(f"Hello, {get_user()['name']} 👋")
+    choice = st.sidebar.radio("Menu", ["Deposit", "Withdraw", "Check Balance", "Logout"])
 
-    if action == "Deposit":
-        amt = st.number_input("Enter amount", min_value=1)
-        pin = st.text_input("Confirm PIN", type="password", key="dep_pin")
-        if st.button("Deposit"):
-            if authenticate(st.session_state.acc_no, pin)[0]:
-                new_bal = deposit(st.session_state.acc_no, amt)
-                st.success(f"₹{amt} deposited. New Balance: ₹{new_bal}")
+    if choice == "Deposit":
+        st.subheader("Deposit Money")
+        amt = st.number_input("Enter amount to deposit", min_value=1, step=1)
+        pin = st.text_input("Enter PIN to confirm", type="password")
+        if st.button("Confirm Deposit"):
+            if pin == get_user()['pin']:
+                get_user()['balance'] += amt
+                st.success(f"₹{amt} deposited successfully!")
             else:
-                st.error("Wrong PIN")
+                st.error("Incorrect PIN")
 
-    elif action == "Withdraw":
-        amt = st.number_input("Enter amount", min_value=1)
-        pin = st.text_input("Confirm PIN", type="password", key="with_pin")
-        if st.button("Withdraw"):
-            if authenticate(st.session_state.acc_no, pin)[0]:
-                ok, new_bal = withdraw(st.session_state.acc_no, amt)
-                if ok:
-                    st.success(f"₹{amt} withdrawn. New Balance: ₹{new_bal}")
+    elif choice == "Withdraw":
+        st.subheader("Withdraw Money")
+        amt = st.number_input("Enter amount to withdraw", min_value=1, step=1)
+        upi = st.text_input("Enter your UPI ID")
+        pin = st.text_input("Enter PIN to confirm", type="password")
+        if st.button("Confirm Withdrawal"):
+            user = get_user()
+            if pin == user['pin']:
+                if amt <= user['balance']:
+                    user['balance'] -= amt
+                    st.success(f"₹{amt} will be transferred to {upi}")
                 else:
                     st.error("Insufficient balance")
             else:
-                st.error("Wrong PIN")
+                st.error("Incorrect PIN")
 
-    elif action == "Check Balance":
-        pin = st.text_input("Enter PIN", type="password", key="bal_pin")
+    elif choice == "Check Balance":
+        st.subheader("Account Balance")
+        pin = st.text_input("Enter PIN to view balance", type="password")
         if st.button("Show Balance"):
-            if authenticate(st.session_state.acc_no, pin)[0]:
-                bal = get_balance(st.session_state.acc_no)
-                st.info(f"💰 Current Balance: ₹{bal}")
+            if pin == get_user()['pin']:
+                st.info(f"Your current balance is ₹{get_user()['balance']}")
             else:
-                st.error("Wrong PIN")
+                st.error("Incorrect PIN")
 
-    elif action == "Logout":
-        st.session_state.clear()
-        st.success("✅ Logged out")
+    elif choice == "Logout":
+        st.session_state.logged_in = False
+        st.session_state.current_user = ''
+        st.success("You have been logged out.")
 
-def main():
-    if "page" not in st.session_state:
-        st.session_state.page = "Home"
-    if st.session_state.page == "Home":
-        home()
-    elif st.session_state.page == "Login":
-        login()
-    elif st.session_state.page == "Dashboard" and st.session_state.get("logged_in"):
-        dashboard()
-    else:
-        st.session_state.page = "Home"
+# Control page flow
+if 'page' not in st.session_state:
+    st.session_state.page = 'home'
 
-main()
+if st.session_state.logged_in:
+    dashboard()
+elif st.session_state.page == 'home':
+    home()
+elif st.session_state.page == 'create':
+    create_page()
+elif st.session_state.page == 'login':
+    login_page()
