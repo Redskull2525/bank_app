@@ -28,10 +28,10 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
+# ✅ FIXED: Removed experimental_rerun (causing error)
 def go_to(page_name):
     st.session_state.prev_page = st.session_state.page
     st.session_state.page = page_name
-    st.experimental_rerun()
 
 def back_button():
     if st.session_state.page != 'home' and st.session_state.prev_page:
@@ -165,5 +165,6 @@ pages = {
     'balance': check_balance
 }
 
-# Call the correct page function
+# Run the appropriate page
 pages[page]()
+
