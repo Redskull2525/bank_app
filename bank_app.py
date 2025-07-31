@@ -28,15 +28,9 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ✅ FIXED: Removed experimental_rerun (causing error)
 def go_to(page_name):
     st.session_state.prev_page = st.session_state.page
     st.session_state.page = page_name
-
-def back_button():
-    if st.session_state.page != 'home' and st.session_state.prev_page:
-        if st.button("🔙 Back"):
-            go_to(st.session_state.prev_page)
 
 def home():
     st.title("🏦 Welcome to MyBank")
@@ -66,7 +60,6 @@ def create_account():
                 go_to('login')
         else:
             st.error("Fill all fields correctly with a 4-digit PIN.")
-    back_button()
 
 def login():
     st.title("🔐 Login")
@@ -81,7 +74,6 @@ def login():
             go_to('dashboard')
         else:
             st.error("Invalid account number or PIN")
-    back_button()
 
 def dashboard():
     user = st.session_state.accounts.get(st.session_state.current_user)
@@ -119,7 +111,6 @@ def deposit():
             go_to('dashboard')
         else:
             st.error("Incorrect PIN")
-    back_button()
 
 def withdraw():
     st.title("🏧 Withdraw Money")
@@ -138,7 +129,6 @@ def withdraw():
                 st.error("Insufficient balance")
         else:
             st.error("Incorrect PIN")
-    back_button()
 
 def check_balance():
     st.title("📊 Check Balance")
@@ -151,7 +141,6 @@ def check_balance():
             go_to('dashboard')
         else:
             st.error("Incorrect PIN")
-    back_button()
 
 # Routing system
 page = st.session_state.page
