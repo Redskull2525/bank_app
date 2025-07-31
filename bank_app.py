@@ -31,7 +31,7 @@ def go_to(page_name):
     st.session_state.page = page_name
 
 def back_button():
-    if st.button("🔙 Back"):
+    if st.session_state.page != 'create' and st.button("🔙 Back"):
         st.session_state.page = st.session_state.prev_page
 
 def home():
@@ -66,7 +66,7 @@ def create_account():
                 go_to('login')
         else:
             st.error("Fill all details and use a 4-digit PIN.")
-    back_button()
+
 
 def login():
     st.title("🔐 Login")
