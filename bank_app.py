@@ -1,5 +1,6 @@
 import streamlit as st
 
+# Page settings
 st.set_page_config(page_title="MyBank App", page_icon="🏦", layout="centered")
 st.markdown("""
     <style>
@@ -12,27 +13,30 @@ st.markdown("""
             border-radius: 8px;
             font-size: 16px;
             font-weight: bold;
+            cursor: pointer;
         }
     </style>
 """, unsafe_allow_html=True)
 
 # Session state setup
-if 'accounts' not in st.session_state:
-    st.session_state.accounts = {}
-if 'current_user' not in st.session_state:
-    st.session_state.current_user = None
-if 'page' not in st.session_state:
-    st.session_state.page = 'home'
-if 'prev_page' not in st.session_state:
-    st.session_state.prev_page = None
+for key, default in {
+    'accounts': {},
+    'current_user': None,
+    'page': 'home',
+    'prev_page': None
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 def go_to(page_name):
     st.session_state.prev_page = st.session_state.page
     st.session_state.page = page_name
+    st.experimental_rerun()
 
 def back_button():
-    if st.session_state.page != 'create' and st.button("🔙 Back"):
-        st.session_state.page = st.session_state.prev_page
+    if st.session_state.page != 'home' and st.session_state.prev_page:
+        if st.button("🔙 Back"):
+            go_to(st.session_state.prev_page)
 
 def home():
     st.title("🏦 Welcome to MyBank")
@@ -52,21 +56,17 @@ def create_account():
     acc_no = st.text_input("Account Number")
     pin = st.text_input("Set 4-digit PIN", type="password")
 
-    if st.button("Create"):
+    if st.button("Create Account"):
         if len(pin) == 4 and pin.isdigit() and name and acc_no:
             if acc_no in st.session_state.accounts:
                 st.error("Account number already exists!")
             else:
-                st.session_state.accounts[acc_no] = {
-                    'name': name,
-                    'pin': pin,
-                    'balance': 0
-                }
+                st.session_state.accounts[acc_no] = {'name': name, 'pin': pin, 'balance': 0}
                 st.success("Account created successfully! Please log in.")
                 go_to('login')
         else:
-            st.error("Fill all details and use a 4-digit PIN.")
-
+            st.error("Fill all fields correctly with a 4-digit PIN.")
+    back_button()
 
 def login():
     st.title("🔐 Login")
@@ -76,17 +76,20 @@ def login():
     if st.button("Login"):
         user = st.session_state.accounts.get(acc_no)
         if user and user['pin'] == pin:
-            st.success(f"Welcome back, {user['name']}!")
             st.session_state.current_user = acc_no
+            st.success(f"Welcome, {user['name']}!")
             go_to('dashboard')
         else:
             st.error("Invalid account number or PIN")
     back_button()
 
 def dashboard():
-    user = st.session_state.accounts[st.session_state.current_user]
-    st.title(f"🏠 Welcome {user['name']}")
+    user = st.session_state.accounts.get(st.session_state.current_user)
+    if not user:
+        go_to('home')
+        return
 
+    st.title(f"🏠 Welcome {user['name']}")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("💰 Deposit"):
@@ -94,7 +97,6 @@ def dashboard():
     with col2:
         if st.button("🏧 Withdraw"):
             go_to('withdraw')
-
     col3, col4 = st.columns(2)
     with col3:
         if st.button("📊 Check Balance"):
@@ -107,7 +109,7 @@ def dashboard():
 def deposit():
     st.title("💰 Deposit Money")
     pin = st.text_input("Enter your 4-digit PIN", type="password")
-    amount = st.number_input("Enter amount to deposit", min_value=1)
+    amount = st.number_input("Amount to deposit", min_value=1)
 
     if st.button("Confirm Deposit"):
         user = st.session_state.accounts[st.session_state.current_user]
@@ -122,8 +124,8 @@ def deposit():
 def withdraw():
     st.title("🏧 Withdraw Money")
     pin = st.text_input("Enter your 4-digit PIN", type="password")
-    amount = st.number_input("Enter amount to withdraw", min_value=1)
-    upi = st.text_input("Enter UPI ID to receive funds")
+    amount = st.number_input("Amount to withdraw", min_value=1)
+    upi = st.text_input("UPI ID to receive funds")
 
     if st.button("Confirm Withdrawal"):
         user = st.session_state.accounts[st.session_state.current_user]
@@ -139,7 +141,7 @@ def withdraw():
     back_button()
 
 def check_balance():
-    st.title("📊 Account Balance")
+    st.title("📊 Check Balance")
     pin = st.text_input("Enter your 4-digit PIN", type="password")
 
     if st.button("Show Balance"):
@@ -151,20 +153,17 @@ def check_balance():
             st.error("Incorrect PIN")
     back_button()
 
-# Routing
+# Routing system
 page = st.session_state.page
+pages = {
+    'home': home,
+    'create': create_account,
+    'login': login,
+    'dashboard': dashboard,
+    'deposit': deposit,
+    'withdraw': withdraw,
+    'balance': check_balance
+}
 
-if page == 'home':
-    home()
-elif page == 'create':
-    create_account()
-elif page == 'login':
-    login()
-elif page == 'dashboard':
-    dashboard()
-elif page == 'deposit':
-    deposit()
-elif page == 'withdraw':
-    withdraw()
-elif page == 'balance':
-    check_balance()
+# Call the correct page function
+pages[page]()
