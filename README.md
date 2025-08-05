@@ -23,6 +23,7 @@ MyBank is a user-friendly, fully functional banking app built with Python and St
 
    ```bash
    git clone https://github.com/your-username/mybank-app.git
-   cd mybank-app
+## Streamlit
 
-   https://bankapp-abhishek001.streamlit.app/
+    https://bankapp-abhishek001.streamlit.app/
+
